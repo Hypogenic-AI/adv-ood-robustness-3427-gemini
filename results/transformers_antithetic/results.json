@@ -1,0 +1,39 @@
+{
+    "args": {
+        "model_name": "Qwen/Qwen2.5-0.5B-Instruct",
+        "population_size": 10,
+        "train_samples": 20,
+        "test_samples": 20,
+        "sigma": 0.001,
+        "top_k": 3,
+        "method": "antithetic",
+        "output_dir": "results/transformers_antithetic"
+    },
+    "base_results": {
+        "clean": 0.1,
+        "adv": 0.0,
+        "ood": 0.1
+    },
+    "top_k_experts": [
+        {
+            "seed": 2142315987,
+            "negate": false,
+            "train_acc": 0.25
+        },
+        {
+            "seed": 1778634376,
+            "negate": false,
+            "train_acc": 0.15
+        },
+        {
+            "seed": 1778634376,
+            "negate": true,
+            "train_acc": 0.15
+        }
+    ],
+    "ensemble_results": {
+        "clean": 0.1,
+        "adv": 0.05,
+        "ood": 0.15
+    }
+}

@@ -1,0 +1,28 @@
+\section{Methodology}
+
+\para{Problem Formulation.}
+Let $\vtheta$ be the parameters of a pretrained language model. The \randopt method \citep{gan2026neural} generates a pool of $N$ candidate experts by sampling weight perturbations $\vtheta_i = \vtheta + \delta_i$, where $\delta_i \sim \mathcal{N}(0, \sigma^2 \mI)$. The top $K$ experts are then selected based on their performance on a validation set, and their predictions are aggregated via majority voting. Our main question is: {\bf how does the distribution of $\delta_i$ affect the ensemble's robustness to distribution shifts?}
+
+\para{\methodname.}
+Standard Gaussian sampling can produce highly correlated experts that share similar failure modes, especially when evaluated on \ood data. To explicitly encourage diversity among the experts, we propose \methodname. Instead of sampling $N$ independent Gaussian perturbations, we sample $N/2$ independent Gaussian perturbations $\delta_i$. For each $\delta_i$, we generate an antithetic pair:
+\begin{equation}
+    \vtheta_i^+ = \vtheta + \delta_i, \quad \vtheta_i^- = \vtheta - \delta_i
+\end{equation}
+This ensures that the sampled directions are perfectly anti-correlated in the weight space, forcing the resulting experts to cover a wider and more diverse neighborhood around the pretrained weights. We then select the top $K$ experts from this combined pool of $N$ candidates.
+
+\para{Experimental Setup.}
+We use \qwen as our base model. To evaluate robustness, we construct the \rgsm benchmark, derived from the \gsm dataset. The benchmark consists of three splits:
+\begin{itemize}[leftmargin=*,itemsep=0pt,topsep=0pt]
+    \item \textbf{Clean}: The original \gsm test questions.
+    \item \textbf{Adversarial (\adv)}: Questions subjected to character-level noise, including random character swaps, deletions, and additions.
+    \item \textbf{Out-of-Distribution (\ood)}: Questions with significant formatting and phrasing shifts (e.g., replacing standard ``Q: / A:'' templates with conversational prompts like ``Solve for me:'').
+\end{itemize}
+Questions are formatted using the Instruct model chat template. Model answers are extracted by parsing for the \texttt{\#\#\#\#} tag or taking the last numeric value in the generated response.
+
+\para{Baselines and Implementation Details.}
+We compare three configurations:
+1) \textbf{Base Model}: The original unperturbed \qwen.
+2) \textbf{Standard \randopt}: An ensemble of $K=3$ experts selected from $N=10$ random Gaussian perturbations with standard deviation $\sigma=0.001$.
+3) \textbf{\methodname}: An ensemble of $K=3$ experts selected from 5 pairs of antithetic perturbations with $\sigma=0.001$.
+
+All ensembles aggregate predictions using majority voting on the extracted numeric answers. Experiments are conducted using the HuggingFace \texttt{transformers} library.

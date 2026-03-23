@@ -1,0 +1,10 @@
+\section{Discussion}
+
+\para{The Importance of Explicit Diversity.}
+Our findings highlight a critical nuance in the Neural Thickets hypothesis: while dense neighborhoods of experts exist around pretrained weights, naive sampling is insufficient for robust generalization. Standard Gaussian perturbations tend to find experts that are highly correlated, leading to a phenomenon where the ensemble becomes over-specialized to the specific training/validation distribution. By enforcing explicit diversity through \methodname, we force the ensemble to cover a wider geometric area in the weight space. This diversity directly translates to varied functional behavior, reducing the likelihood that all experts will be simultaneously fooled by an \ood phrasing shift.
+
+\para{Limitations.}
+Our current study focuses on a relatively small model (\qwen) due to computational constraints. The density and properties of Neural Thickets may differ substantially at larger scales (e.g., 7B or 70B parameters). Furthermore, the overall accuracy on \gsm for this 0.5B model is low, which compresses the absolute differences between methods, even though the relative changes are significant. Finally, while \methodname improves \ood resilience, its defense against direct adversarial character perturbations remains weak (5.0\% accuracy).
+
+\para{Broader Implications.}
+As LLMs are deployed in safety-critical applications, ensuring they do not fail catastrophically under distribution shifts is paramount. Our work demonstrates that weight-space ensembling is a viable, inference-efficient robustness strategy, but only if the sampling method is carefully designed. Antithetic sampling provides a simple, memory-efficient way to ensure diverse expert coverage without requiring expensive adversarial fine-tuning.

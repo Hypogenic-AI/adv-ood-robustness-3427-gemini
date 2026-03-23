@@ -1,0 +1,16 @@
+\section{Introduction}
+
+Given the ability of large language models (LLMs) to perform complex reasoning tasks, there is growing interest in deploying them in real-world scenarios. However, it also becomes increasingly challenging to ensure these models remain robust to stochastic perturbations, adversarial attacks, and out-of-distribution (\ood) shifts. Recently, neural thicket ensembles, or \randopt \citep{gan2026neural}, have emerged as a computationally efficient approach to improve model performance by sampling random weight perturbations around a pretrained model and ensembling the top performers.
+
+While the ``Neural Thickets'' hypothesis demonstrates performance gains on clean benchmarks, the security and robustness properties of these weight-space ensembles are not yet understood. On one hand, ensembling multiple models typically improves general robustness. On the other hand, experts sampled via standard Gaussian perturbations may be highly correlated, making them vulnerable to the same adversarial directions and degrading \ood resilience. There is no existing work on whether random directions provide inherent robustness or if explicit diversity is required.
+
+To bridge this gap, we hypothesize that neural thicket ensembles improve robustness compared to single models, but their vulnerability depends heavily on the diversity and independence of the sampled experts. We evaluate the robustness of standard \randopt to adversarial and \ood shifts on reasoning tasks. Furthermore, we propose \methodname, which explicitly enforces diversity by pairing opposite perturbations ($+\delta$ and $-\delta$) in the weight space to improve ensemble resilience.
+
+Our quantitative evaluation on a \rgsm benchmark reveals that standard \randopt ensembles improve clean accuracy by 5.0\% over the base model, but actually reduce \ood accuracy from 10.0\% to 5.0\%. In contrast, \methodname improves \ood accuracy to 15.0\% while maintaining clean accuracy.
+
+In summary, our key contributions are:
+\begin{itemize}[leftmargin=*,itemsep=0pt,topsep=0pt]
+    \item We conduct the first systematic evaluation of \randopt's robustness to adversarial and \ood shifts on reasoning tasks.
+    \item We propose \methodname, a diversity-enhancing sampling method that uses pairs of opposite perturbations.
+    \item We demonstrate that \methodname significantly enhances \ood and adversarial robustness compared to both single models and standard ensembles.
+\end{itemize}

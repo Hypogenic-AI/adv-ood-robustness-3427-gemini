@@ -1,0 +1,433 @@
+You are an academic paper writer. Generate a complete NEURIPS style paper
+based on the experiment results provided.
+
+════════════════════════════════════════════════════════════════════════════════
+                         IMPORTANT: BEFORE YOU START
+════════════════════════════════════════════════════════════════════════════════
+
+Before writing any content, you MUST complete these steps:
+
+1. READ THE SKILL: Review the paper-writer skill at .gemini/skills/paper-writer/SKILL.md
+2. READ THE STYLE GUIDE: Study templates/paper_writing/lab_style_guide.md carefully
+3. REVIEW EXAMPLES: Browse paper_examples/ for formatting and language patterns:
+   - Look at sections/1.introduction.tex for language style
+   - Look at tables/*.tex for table formatting
+   - Look at commands/*.tex for macro usage
+4. VERIFY COMMAND TEMPLATES: Command templates (math.tex, general.tex, macros.tex) are pre-copied to paper_draft/commands/
+
+CRITICAL: Reference example papers for FORMATTING and LANGUAGE STYLE only.
+Do NOT copy content, phrasing, or narrative structure from the example papers.
+The examples are in a different research domain - focus only on presentation style.
+
+════════════════════════════════════════════════════════════════════════════════
+                            EXPERIMENT REPORT
+════════════════════════════════════════════════════════════════════════════════
+
+# Probing the Limits: Adversarial and OOD Robustness of Neural Thicket Ensembles
+
+## 1. Executive Summary
+- **Research Question**: Do neural thicket ensembles (RandOpt) improve robustness to adversarial and OOD inputs, and can diversity-enhancing sampling methods further improve this resilience?
+- **Key Finding**: While standard RandOpt ensembles improve accuracy on clean data, they can actually degrade performance on OOD inputs. However, **Antithetic RandOpt** (using pairs of opposite perturbations) significantly enhances OOD robustness, outperforming both the base model and standard ensembles.
+- **Practical Implications**: Ensembling random weight perturbations is a viable low-cost robustness strategy, but the sampling method is critical. Antithetic sampling should be preferred for safety-critical applications where OOD resilience is required.
+
+## 2. Goal
+The goal of this research was to test the hypothesis that neural thicket ensembles constructed from random perturbations around a pretrained model improve robustness, and that explicitly encouraging diversity (e.g., via antithetic sampling) further enhances this resilience.
+
+## 3. Data Construction
+
+### Dataset Description
+- **GSM8K**: Grade School Math word problems (HuggingFace version).
+- **Robust GSM8K**: A custom-generated test set containing:
+  - **Clean**: Original GSM8K test samples.
+  - **Adversarial (Adv)**: Character-level noise (swaps, deletions, additions) applied to the questions.
+  - **Out-of-Distribution (OOD)**: Formatting and phrasing shifts (e.g., changing &#34;Q: A:&#34; to &#34;Solve for me:&#34;).
+
+### Preprocessing
+- Questions were formatted using the Instruct model chat template (user role).
+- Answers were extracted by looking for the `####` tag or taking the last numeric value in the response.
+
+## 4. Experiment Description
+
+### Methodology
+We compared three model configurations:
+1.  **Base Model**: Qwen2.5-0.5B-Instruct.
+2.  **Standard RandOpt Ensemble**: Top-3 experts selected from 10 random Gaussian perturbations ($\sigma=0.001$).
+3.  **Antithetic RandOpt Ensemble**: Top-3 experts selected from 5 pairs of antithetic perturbations ($+\delta$ and $-\delta$).
+
+### Implementation Details
+- **Model**: Qwen/Qwen2.5-0.5B-Instruct (0.5B parameters).
+- **Library**: `transformers` (due to environment-specific issues with `vLLM` and Triton compilers).
+- **Hardware**: NVIDIA RTX 3090.
+- **Ensemble Strategy**: Majority voting on the extracted numeric answers.
+
+## 5. Result Analysis
+
+### Key Findings
+1.  **Standard Ensembles Trade-off OOD for Clean Accuracy**: The standard ensemble improved clean accuracy from 10% to 15%, but reduced OOD accuracy from 10% to 5%.
+2.  **Antithetic Sampling Boosts Robustness**: The antithetic ensemble maintained clean accuracy (10%) but improved OOD accuracy to 15% and Adversarial accuracy to 5% (from 0%).
+3.  **Adversarial Sensitivity**: All models showed high sensitivity to character-level noise, with base model accuracy dropping to 0%. Ensembles provided a small but measurable improvement (to 5%).
+
+### Comparison Table
+| Metric | Base | Standard | Antithetic |
+|---|---|---|---|
+| Clean | 10.0% | 15.0% | 10.0% |
+| Adversarial | 0.0% | 5.0% | 5.0% |
+| OOD | 10.0% | 5.0% | 15.0% |
+
+### Visualizations
+A comparison plot is available at `figures/robustness_comparison.png`.
+
+## 6. Conclusions
+Our results support the hypothesis that diversity-enhancing sampling (Antithetic RandOpt) improves the robustness of weight-space ensembles. Standard RandOpt, while effective for clean performance, can lead to experts that are over-correlated on specific data distributions, making the ensemble vulnerable to distribution shifts. Antithetic sampling provides a simple, memory-efficient way to ensure the ensemble covers a wider neighborhood of task experts.
+
+## 7. Next Steps
+- **Orthogonal RandOpt**: Evaluate Gram-Schmidt orthogonalization on a subset of parameters (e.g., only the attention projection matrices) to further increase diversity.
+- **Scale**: Test on larger models (7B, 14B) where the &#34;Neural Thicket&#34; density is expected to be higher.
+- **Diverse Sigma**: Explore ensembles with varying perturbation scales to handle multi-scale shifts.
+
+
+════════════════════════════════════════════════════════════════════════════════
+                            RESEARCH PLAN
+════════════════════════════════════════════════════════════════════════════════
+
+# Research Plan: Probing the Limits of Neural Thicket Ensembles
+
+## Motivation &amp; Novelty Assessment
+
+### Why This Research Matters
+Neural thicket ensembles (RandOpt) offer a computationally efficient way to create task-specific experts from pretrained models. However, their security and robustness properties are not yet understood. As LLMs are increasingly deployed in real-world scenarios, understanding how these ensembles handle adversarial attacks and out-of-distribution (OOD) data is critical.
+
+### Gap in Existing Work
+The &#34;Neural Thickets&#34; hypothesis (Gan &amp; Isola, 2026) demonstrates performance gains on clean benchmarks, but does not explore robustness. While &#34;Model Soups&#34; has some literature on robustness (Croce et al., 2023), the specific case of ensembles formed by random perturbations remains a mystery. There is no existing work on whether random directions provide inherent robustness or if they are equally vulnerable to targeted attacks.
+
+### Our Novel Contribution
+We propose and evaluate **Orthogonal RandOpt**, which explicitly enforces diversity in the weight space to improve ensemble resilience. We also provide the first systematic evaluation of RandOpt&#39;s robustness to adversarial and OOD shifts on reasoning tasks (GSM8K).
+
+### Experiment Justification
+- **Experiment 1 (Baseline Robustness)**: Establish the robustness of the original RandOpt method to provide a benchmark.
+- **Experiment 2 (Orthogonal RandOpt Implementation &amp; Evaluation)**: Determine if weight-space diversity translates to adversarial robustness.
+- **Experiment 3 (Ablation on Ensemble Size)**: Study how the number of experts and the sampling ratio affect robustness.
+
+---
+
+## Research Question
+Do neural thicket ensembles improve adversarial and OOD robustness compared to single models, and can explicit diversity (orthogonality) further enhance this resilience?
+
+## Hypothesis Decomposition
+- **H1**: Weight-space ensembles (RandOpt) are more robust than single models to stochastic perturbations in the input.
+- **H2**: Standard RandOpt experts may be highly correlated, making them vulnerable to the same adversarial directions.
+- **H3**: Orthogonalizing the perturbations in weight space increases the diversity of the experts&#39; failure modes, leading to higher ensemble robustness.
+
+## Proposed Methodology
+
+### Approach
+1.  **Environment Setup**: Utilize `uv` for dependency management and `vllm`/`ray` for model serving.
+2.  **Dataset Preparation**: Use GSM8K. Generate adversarial examples using character-level perturbations and word substitutions.
+3.  **Baseline Execution**: Run the original RandOpt implementation on Qwen2.5-3B-Instruct.
+4.  **Orthogonal RandOpt Implementation**: Modify the sampling procedure in `randopt.py` to ensure perturbations are orthogonal.
+5.  **Comparative Analysis**: Compare Clean Accuracy, Adversarial Accuracy, and OOD Accuracy across all methods.
+
+### Baselines
+- Single Pretrained Model.
+- Standard RandOpt (Gaussian).
+- Logit-Space Ensemble (Averaging outputs of the same RandOpt experts).
+
+### Evaluation Metrics
+- Accuracy (Clean, Adversarial, OOD).
+- Disagreement Score: Fraction of samples where experts disagree.
+- Perturbation Similarity: Cosine similarity between weight perturbations.
+
+## Success Criteria
+- Successful implementation of Orthogonal RandOpt.
+- Statistical significance (p &lt; 0.05) in robustness improvements over the single model baseline.
+- Clear characterization of RandOpt&#39;s vulnerability/robustness to adversarial attacks.
+
+
+════════════════════════════════════════════════════════════════════════════════
+                          LITERATURE REVIEW
+════════════════════════════════════════════════════════════════════════════════
+
+# Literature Review: Adversarial and OOD Robustness of Neural Thicket Ensembles
+
+## Research Area Overview
+This research investigates the robustness of ensembles created through random perturbations around pretrained model weights, a concept recently popularized by the &#34;Neural Thickets&#34; hypothesis. We focus on how the diversity and independence of these perturbations affect their resilience to adversarial attacks and out-of-distribution (OOD) shifts.
+
+## Key Papers
+
+### 1. Neural Thickets: Diverse Task Experts Are Dense Around Pretrained Weights (Gan &amp; Isola, 2026)
+- **Key Contribution**: Proposes the &#34;Neural Thicket&#34; hypothesis, stating that large pretrained models are surrounded by a dense neighborhood of task-specific experts.
+- **Methodology**: Introduces **RandOpt**, a method that samples N random Gaussian perturbations around pretrained weights and ensembles the top K performers.
+- **Results**: Shows that RandOpt is competitive with standard post-training methods (PPO, GRPO) and that the sampled experts are diverse specialists.
+- **Relevance**: Foundational for our study; defines the ensemble method we are testing.
+
+### 2. Seasoning Model Soups for Robustness to Adversarial and Natural Distribution Shifts (Croce et al., 2023)
+- **Key Contribution**: Demonstrates that &#34;soups&#34; (weight averaging) of models fine-tuned with different adversarial objectives can improve robustness to multiple threats.
+- **Methodology**: Fine-tunes models for different lp norms and interpolates their weights.
+- **Results**: Soups can smoothly trade off between different types of robustness and often outperform individual models.
+- **Relevance**: Provides a baseline for adversarial robustness in weight-space ensembles.
+
+### 3. Model Soups: Averaging Weights of Multiple Fine-Tuned Models Improves Accuracy without Increasing Inference Time (Wortsman et al., 2022)
+- **Key Contribution**: Introduces &#34;Model Soups&#34; - averaging weights of models fine-tuned with different hyperparameters.
+- **Results**: Significantly improves performance on ImageNet and other benchmarks without additional compute at inference.
+- **Relevance**: The original concept upon which Neural Thickets and Seasoning are built.
+
+## Common Methodologies
+- **Weight Averaging / Interpolation**: Combining multiple models in the weight space rather than the logit space.
+- **Random Perturbations**: Sampling around a central point (pretrained weights) to find high-performing directions.
+- **Diversity Encouragement**: Traditionally done via hyperparameter variation; we propose orthogonal or adversarial directions.
+
+## Standard Baselines
+- **Single Pretrained Model**: The starting point for perturbations.
+- **Standard RandOpt**: Gaussian random perturbations (from Gan &amp; Isola, 2026).
+- **Logit-Space Ensembles**: Majority voting or averaging of model outputs.
+
+## Evaluation Metrics
+- **Clean Accuracy**: Performance on standard benchmarks (GSM8K, MBPP).
+- **Adversarial Accuracy**: Performance under attacks (e.g., character-level perturbations, word substitutions for LLMs).
+- **OOD Accuracy**: Performance on distribution-shifted versions of the task.
+
+## Recommendations for Our Experiment
+- **Datasets**: GSM8K and MBPP (as used in Neural Thickets), plus adversarial versions (e.g., GSM8K-Robustness).
+- **Baselines**: Standard RandOpt, Uniform Soup of fine-tuned models.
+- **Proposed Method**: Orthogonal RandOpt (Gram-Schmidt on perturbations) and Adversarial RandOpt (using gradients to find &#34;diverse&#34; directions).
+
+
+════════════════════════════════════════════════════════════════════════════════
+                          PAPER REQUIREMENTS
+════════════════════════════════════════════════════════════════════════════════
+
+Generate a complete academic paper with the following structure:
+
+1. TITLE
+   - Clear, specific, informative
+   - Should convey main finding or contribution
+
+2. AUTHOR
+   - Use this exact author line in the \author{} block: NeuriCo
+
+3. ABSTRACT (150-250 words)
+   - Problem statement
+   - Approach
+   - Key results
+   - Significance
+
+4. INTRODUCTION
+   - Research problem and motivation
+   - Gap in existing work
+   - Our contribution (be specific)
+   - Paper organization
+
+5. RELATED WORK
+   - Organized by theme/approach
+   - Position our work relative to prior work
+   - Cite papers from literature review
+
+6. METHODOLOGY
+   - Clear description of approach
+   - Experimental setup
+   - Datasets used
+   - Evaluation metrics
+   - Baselines
+
+7. RESULTS
+   - Present results with tables and figures
+   - Statistical analysis
+   - Comparison to baselines
+   - Ablation studies (if applicable)
+
+8. DISCUSSION
+   - Interpretation of results
+   - Limitations
+   - Broader implications
+
+9. CONCLUSION
+   - Summary of contributions
+   - Key findings
+   - Future work
+
+10. REFERENCES
+   - BibTeX format
+   - All cited papers
+
+════════════════════════════════════════════════════════════════════════════════
+                          OUTPUT FORMAT
+════════════════════════════════════════════════════════════════════════════════
+
+Create a MODULAR LaTeX project with the following directory structure:
+
+paper_draft/
+├── main.tex              # Main file that imports all sections
+├── references.bib        # BibTeX references
+├── sections/
+│   ├── abstract.tex      # Abstract content
+│   ├── introduction.tex  # Introduction section
+│   ├── related_work.tex  # Related work section
+│   ├── methodology.tex   # Methodology section
+│   ├── results.tex       # Results section
+│   ├── discussion.tex    # Discussion section
+│   └── conclusion.tex    # Conclusion section
+├── figures/              # Directory for any generated figures
+├── tables/               # Directory for complex standalone tables
+└── appendix/             # Directory for appendix sections (if needed)
+
+INSTRUCTIONS:
+1. First, create the directory structure above (mkdir -p paper_draft/sections paper_draft/figures paper_draft/tables paper_draft/appendix)
+2. Write main.tex using the EXACT preamble for NEURIPS:
+
+   \documentclass{article}
+   \usepackage[final]{neurips_2025}  % NEURIPS style (neurips_2025.sty is in paper_draft/)
+   \usepackage[hidelinks]{hyperref}  % REQUIRED: clickable links
+   \usepackage{booktabs}  % REQUIRED: professional tables
+   \usepackage{graphicx}
+   \usepackage{amsmath,amssymb}
+
+   % Import command files
+   \input{commands/math}
+   \input{commands/general}
+   \input{commands/macros}
+
+   % Use this bibliography style:
+   \bibliographystyle{plainnat}
+
+   \author{NeuriCo}
+
+   - Use \input{sections/...} to include each section
+   - Use \bibliography{references} for references
+3. Write each section file with COMPLETE content (no placeholders)
+4. Each section file should include its \section{} command
+5. Write references.bib with all citations in BibTeX format
+6. After writing all files, compile the paper:
+   cd paper_draft && pdflatex -interaction=nonstopmode main.tex && bibtex main && pdflatex -interaction=nonstopmode main.tex && pdflatex -interaction=nonstopmode main.tex
+
+This modular structure allows humans to easily:
+- Edit individual sections without navigating a large file
+- Track changes per section
+- Reuse sections across different paper versions
+
+════════════════════════════════════════════════════════════════════════════════
+                          QUALITY REQUIREMENTS
+════════════════════════════════════════════════════════════════════════════════
+
+- Academic tone throughout
+- All claims must be supported by data from the experiment report
+- Proper citations using \cite{} commands
+- Clear figures and tables with proper captions
+- NO placeholder text - every section must have real content
+- The paper MUST compile without errors
+- If compilation fails, debug and fix the LaTeX errors
+
+════════════════════════════════════════════════════════════════════════════════
+                          LAB WRITING STYLE
+════════════════════════════════════════════════════════════════════════════════
+
+Follow these lab-specific conventions to match our paper style:
+
+1. LANGUAGE STYLE:
+   - Use active voice: "We propose", "We examine", "We focus on"
+   - Be direct and confident: "Our main question is...", "We hypothesize that..."
+   - State things clearly and simply - prefer plain language over jargon
+   - Use bold questions as paragraph organizers: {\bf what is X?}
+   - Include specific quantitative claims: "8.97% over baseline"
+   - Avoid fancy wording: "utilize" → "use", "facilitate" → "help"
+
+2. INTRODUCTION STRUCTURE:
+   - Engaging hook (get to the point quickly)
+   - Problem importance
+   - Gap identification
+   - Your approach with method figure reference
+   - Quantitative preview of results
+   - Contribution bullets (3-4 items, action verbs)
+
+3. CONTRIBUTION LISTS:
+   \begin{itemize}[leftmargin=*,itemsep=0pt,topsep=0pt]
+       \item We propose...
+       \item We conduct...
+       \item We complement...
+   \end{itemize}
+
+4. MODULAR COMMANDS STRUCTURE:
+   Command templates are pre-copied to paper_draft/commands/:
+   - math.tex: Math notation macros
+   - general.tex: Formatting macros
+   - macros.tex: Project-specific term definitions (customize this for your paper)
+
+   In main.tex, include:
+   \input{commands/math}
+   \input{commands/general}
+   \input{commands/macros}
+
+5. REFERENCE CONVENTIONS:
+   Use reference macros from math.tex:
+   - \figref{fig:name} for "figure 1" (lowercase, in-sentence)
+   - \Figref{fig:name} for "Figure 1" (capitalized, start of sentence)
+   - \secref{sec:name} for "section 2"
+
+6. TEXT FORMATTING:
+   - Use \para{Header text} for bold paragraph headers
+   - Define method/dataset names with \textsc and \xspace:
+     \newcommand{\methodname}{\textsc{MethodName}\xspace}
+
+7. TABLE FORMATTING:
+   - Use booktabs package (no vertical lines)
+   - Use \resizebox{\textwidth}{!}{...} for wide tables
+   - Use @{} to remove padding at table edges
+   - Use \cmidrule(lr){x-y} for sub-headers
+   - Use \textsc{} for dataset/method names in headers
+   - Bold best results with {\bf ...}
+
+8. FIGURE FORMATTING:
+   - Use 0.32\textwidth for 3-column subfigures
+   - Use 0.95\linewidth for full-width figures
+   - Use \input{figures/legend} for shared legends
+   - Write self-contained captions explaining key observations
+
+9. RESULTS PRESENTATION:
+   - Define \increase and \decrease for colored arrows (green up, red down)
+   - Bold best results in tables
+   - Report confidence intervals when available
+
+10. ALGORITHM STYLING:
+    - Use algpseudocode with [noend]
+    - Use \triangleright for comments
+
+11. HYPERLINKS (REQUIRED):
+    - Always use \usepackage[hidelinks]{hyperref} or with colored links
+    - All citations, section refs, figure refs, table refs must be clickable
+    - This is essential for reader navigation
+
+════════════════════════════════════════════════════════════════════════════════
+                          WORKFLOW: REVIEW AND REFLECT
+════════════════════════════════════════════════════════════════════════════════
+
+Before calling finish, you MUST complete these review steps:
+
+1. REVIEW RESOURCES (at the start):
+   - Read .gemini/skills/paper-writer/SKILL.md for detailed guidance
+   - Study templates/paper_writing/lab_style_guide.md for style conventions
+   - Browse paper_examples/ for formatting and language patterns
+
+2. SELF-REFLECTION (before finishing):
+   After writing all sections, review your work against these criteria:
+
+   LANGUAGE CHECK:
+   - [ ] Is the writing clear and jargon-free?
+   - [ ] Are claims specific with quantitative support?
+   - [ ] Is active voice used throughout?
+
+   FORMATTING CHECK:
+   - [ ] Does main.tex include \input{commands/math}, \input{commands/general}, \input{commands/macros}?
+   - [ ] Is hyperref package included for clickable references?
+   - [ ] Do tables use booktabs (no vertical lines)?
+   - [ ] Are best results bolded in tables?
+   - [ ] Are figures/tables properly captioned?
+
+   STRUCTURE CHECK:
+   - [ ] Does introduction follow: hook → importance → gap → approach → preview → contributions?
+   - [ ] Are contribution bullets specific with action verbs?
+   - [ ] Does the paper compile without errors?
+
+3. FIX ISSUES:
+   - Address any issues found in the self-reflection
+   - Re-compile and verify the PDF looks correct
+
+Only after completing this review should you consider the paper finished.
